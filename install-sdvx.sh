@@ -1,5 +1,14 @@
 #!/usr/bin/bash
 
+function initialCheck {
+    # Abort if the folder already exists.
+    # The "mv" command in downloadKonasute() will fail otherwise.
+    if [[ -d "${HOME}/Games/SOUND VOLTEX EXCEED GEAR" ]] ; then
+        echo "Game already installed '${HOME}/Games/SOUND VOLTEX EXCEED GEAR' Aborting."
+        exit
+    fi
+}
+
 function intro() {
     echo "SOUND VOLTEX EXCEED GEAR Konasute installation script"
     echo "=============================================="
@@ -8,9 +17,9 @@ function intro() {
     echo "- Create a Wine prefix \"Konasute\" and install d3dcompiler_43, d3dcompiler_44, d3dcompiler_46, d3dcompiler47, dxvk, vcrun2010, cjkfonts; and set the audio driver for the prefix to ALSA;"
     echo "- Registers x86 and x64 versions of dsdmo.dll for the prefix for rendering sound effects in the game;"
     echo "- Create a registry entry on the Wine prefix that points the game it's installation path;"
-    echo "- Downloads the Konasute installer from KONAMI through curl, extracts it using msitools' msiextract and places it under \"~/Games/SOUND VOLTEX EXCEED GEAR\". (assuming you are OK with KONAMI's terms of use);"
-    echo "- Create a desktop file on \"~/.local/share/applications\" that configures the Konasute MIME protocol to launch the game;"
-    echo "- Set up a Pipewire configuration file for low latency audio under \"~/.config/pipewire/pipewire.conf.d/\"."
+    echo "- Downloads the Konasute installer from KONAMI through curl, extracts it using msitools' msiextract and places it under \"${HOME}/Games/SOUND VOLTEX EXCEED GEAR\". (assuming you are OK with KONAMI's terms of use);"
+    echo "- Create a desktop file on \"${HOME}/.local/share/applications\" that configures the Konasute MIME protocol to launch the game;"
+    echo "- Set up a Pipewire configuration file for low latency audio under \"${HOME}/.config/pipewire/pipewire.conf.d/\"."
     echo ""
     echo "Proceed? (N/y)"
 
@@ -22,8 +31,12 @@ function intro() {
     fi
 }
 
+# Error output in english
+export LANG=en_US.UTF-8
+export LANGUAGE=en
+
 user=$(whoami)
-export WINEPREFIX=~/.local/share/wineprefixes/Konasute
+export WINEPREFIX=${HOME}/.local/share/wineprefixes/Konasute
 
 function installTools() {
     packages=(wine winetricks msitools curl)
@@ -37,27 +50,13 @@ function installTools() {
     elif [[ -x "$(command -v apt)" ]] ; then
         sudo apt install -y ${packages[@]}
     elif [[ -x "$(command -v zypper)" ]] ; then
-        sudo zypper install --non-interactive ${packages[@]}
+        sudo zypper --non-interactive install ${packages[@]}
     elif [[ -x "$(command -v pacman)" ]] ; then
         sudo pacman -Sy ${packages[@]}
     else
         echo "Could not determine your package manager. Aborting."
         exit
     fi
-}
-
-function downloadKonasute() {
-    echo "=============================================="
-    echo "Downloading the SDVX installer."
-    echo "=============================================="
-    address="https://dks1q2aivwkd6.cloudfront.net/vi/installer/sdvx_installer_2022011800.msi"
-    mkdir /tmp/konasute_sdvx
-    cd /tmp/konasute_sdvx
-    curl --output "sdvx_installer.msi" "$address"
-    msiextract ./sdvx_installer.msi &> /dev/null
-    mv ./Games ~
-    mkdir ~/Games/SOUND\ VOLTEX\ EXCEED\ GEAR /Resource
-    rm -rf /tmp/konasute_sdvx
 }
 
 function registerDMO() {
@@ -71,10 +70,10 @@ function setupWinePrefix() {
     echo "Setting up Wine prefix."
     echo "=============================================="
     winetricks d3dcompiler_42 d3dcompiler_43 d3dcompiler_46 d3dcompiler_47 dxvk vcrun2010 cjkfonts sound=alsa
-    
+
     registerDMO
 
-    cd ~
+    cd ${HOME}
     echo "Windows Registry Editor Version 5.00
 
 [HKEY_LOCAL_MACHINE\\SOFTWARE\\KONAMI]
@@ -87,12 +86,29 @@ function setupWinePrefix() {
     rm ./registry.reg
 }
 
+function downloadKonasute() {
+    echo "=============================================="
+    echo "Downloading the SDVX installer."
+    echo "=============================================="
+    address="https://dks1q2aivwkd6.cloudfront.net/vi/installer/sdvx_installer_2022011800.msi"
+    mkdir /tmp/konasute_sdvx
+    cd /tmp/konasute_sdvx
+    curl --output "sdvx_installer.msi" "$address"
+    msiextract ./sdvx_installer.msi &> /dev/null
+
+    # -p needed if "Games" folder doesn't exists
+    mkdir -p "${HOME}/Games/SOUND VOLTEX EXCEED GEAR"
+    mv "/tmp/konasute_sdvx/Games/SOUND VOLTEX EXCEED GEAR" "${HOME}/Games/"
+    mkdir "${HOME}/Games/SOUND VOLTEX EXCEED GEAR/Resource"
+    rm -rf /tmp/konasute_sdvx
+}
+
 function setupDesktopFile() {
     echo "=============================================="
     echo "Setting up desktop file association."
     echo "=============================================="
 
-    cd ~
+    cd ${HOME}
     echo "[Desktop Entry]
 Type=Application
 Name=SOUND VOLTEX EXCEED GEAR コナステ版 Launcher
@@ -101,8 +117,8 @@ Exec=env WINEPREFIX=/home/${user}/.local/share/wineprefixes/Konasute LANG=\"ja_J
 MimeType=x-scheme-handler/konaste.sdvx
 Categories=Game;
 Icon=/home/${user}/Games/SOUND VOLTEX EXCEED GEAR/SOUND VOLTEX EXCEED GEAR.ico" > sdvx.desktop
-    cp sdvx.desktop ~/Desktop
-    mv ./sdvx.desktop ~/.local/share/applications
+    cp sdvx.desktop ${HOME}/Desktop
+    mv ./sdvx.desktop ${HOME}/.local/share/applications
     sudo update-desktop-database
 }
 
@@ -111,15 +127,15 @@ function setupPipewire() {
     echo "Setting up Pipewire configuration files."
     echo "=============================================="
 
-    if [[ ! -d ~/.config/pipewire || ! -d ~/.config/pipewire/pipewire.conf.d/ ]] ; then
-        mkdir ~/.config/pipewire/pipewire.conf.d/
+    if [[ ! -d ${HOME}/.config/pipewire || ! -d ${HOME}/.config/pipewire/pipewire.conf.d/ ]] ; then
+        mkdir -p ${HOME}/.config/pipewire/pipewire.conf.d/
     fi
 
     echo "context.properties = {
     default.clock.rate = 44100
     default.clock.min-quantum = 32
     default.clock.quantum = 128
-}" > ~/.config/pipewire/pipewire.conf.d/lowlatency.conf
+}" > ${HOME}/.config/pipewire/pipewire.conf.d/lowlatency.conf
 
     devices=$(command pw-cli list-objects | awk '/node.name/ {name=$0} /media.class/ && /Audio\/Sink/ {gsub(/.*= "|"/,"",name); if (match(name, /konasuteloop/)==0){print name}}');
 
@@ -147,11 +163,11 @@ function setupPipewire() {
         }
     }
     }
-]" > ~/.config/pipewire/pipewire.conf.d/loopback.conf
+]" > ${HOME}/.config/pipewire/pipewire.conf.d/loopback.conf
 
 
     if [[ -d /run/systemd/system ]] ; then
-        systemctl --user restart pipewire.service pipewire-pulse.socket
+        systemctl --user restart pipewire pipewire-pulse wireplumber
         echo "Restarted pipewire."
     else
         echo "It seems your system does not use systemd to be managed. Please restart the pipewire service and pipewire-pulse socket through your system control manager under user mode."
@@ -168,6 +184,7 @@ function outro() {
     echo "=============================================="
 }
 
+initialCheck
 intro
 installTools
 setupWinePrefix
