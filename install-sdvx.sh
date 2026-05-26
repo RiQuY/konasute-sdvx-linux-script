@@ -181,6 +181,7 @@ function outro() {
     echo "Be sure to configure SDVX's audio options (オーディオ設定) to use WASAPI Exclusive mode (WASAPI (排他モード)), the buffering mode to timer (タイマー駆動). A suggested initial latency setting/buffer size is of 10ms."
     echo "Depending on your controller, you might have to set up a remap string. Refer to the github page for more details."
     echo "Remember to change your audio device profile to Pro Audio mode."
+    echo "If the game is not starting after logging in through the website, reboot your browser/PC".
     echo "=============================================="
 }
 
